@@ -1,3 +1,6 @@
+library(ggplot2)
+library(dplyr)
+
 setwd("~/Documents/DataAnalyst/CouseraCourse/Reproducible-research/RepData_PeerAssessment1")
 if (!file.exists("activity.zip")) {
   download.file("https://d396qusza40orc.cloudfront.net/repdata%2Fdata%2Factivity.zip","activity.zip", method="curl")
@@ -12,7 +15,7 @@ head(activity)
 #retirnado os NA
 activity = na.omit(activityFull)
 
-library(dplyr)
+
 activity = mutate(activity,date=as.Date(date, format = "%Y-%m-%d"))
 #head(activity2)
 #str(activity2)
@@ -25,7 +28,7 @@ head(sumStepsActivity)
 #hist(sumStepsActivity$totalSteps, breaks=nrow(sumStepsActivity))
 #hist(sumStepsActivity$totalSteps, breaks=1000)
 
-library(ggplot2)
+
 colores=c(rbind(colors()[grepl("orange",colors())][1:15],colors()[grepl("blue",colors())][1:15]))
 g=ggplot(sumStepsActivity,aes(totalSteps)) + geom_histogram(fill=colores) 
 g = g + labs(x="Number of steps taken in a day", y="Number of Occurrences", 
