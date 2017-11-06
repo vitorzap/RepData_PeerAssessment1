@@ -18,7 +18,7 @@ The data for this assignment can be downloaded from https://d396qusza40orc.cloud
 
 The variables included in this dataset are:
 
--**steps**: Number of steps taking in a 5-minute interval (missing values are coded as 𝙽𝙰)
+-**steps**: Number of steps taking in a 5-minute interval (missing values are coded as ð ™½ð ™°)
 -**date**: The date on which the measurement was taken in YYYY-MM-DD format
 -**interval**: Identifier for the 5-minute interval in which measurement was taken
 
@@ -26,9 +26,11 @@ The dataset is stored in a comma-separated-value (CSV) file and there are a tota
 
 ### Initial settings
 ```{r}
+rm(list=ls()) 
 setwd("~/Documents/DataAnalyst/CouseraCourse/Reproducible-research/RepData_PeerAssessment1")
 require(ggplot2)
 require(dplyr)
+require(lubridate)
 ```
 
 ## Loading and preprocessing the data
@@ -44,17 +46,133 @@ activityFull=read.csv("activity.csv")
 paste("Dataset with ",nrow(activityFull)," rows")  
 head(activityFull)
 ```
-
+We can see that the dataset contains lines with NA, we will then initially remove them
+```{r}
+activity = na.omit(activityFull)
+head(activity)
+```
 ## What is mean total number of steps taken per day?
 
+#####Calculating total steps by date
+```{r}
+sumStepsActivity = activity %>% group_by(date) %>% summarise(totalSteps = sum(steps))
+head(sumStepsActivity)
+```
+
+#####Let's do the Histogram of the total number of steps taken each day
+```{r}
+colores=c(rbind(colors()[grepl("orange",colors())][1:15],colors()[grepl("blue",colors())][1:15]))
+g=ggplot(sumStepsActivity,aes(totalSteps)) + geom_histogram(fill=colores) 
+g = g + labs(x="Number of steps taken in a day", y="Number of Occurrences", 
+             title="Total number of steps taken each day" )
+g = g + theme_get() 
+print(g)
+```
+
+#####Mean and median number of steps taken each day
+```{r}
+paste("Mean of steps taken each day",mean(sumStepsActivity$totalSteps), sep="=")
+paste("Median number of steps taken each day",median(sumStepsActivity$totalSteps), sep="=")
+```
 
 
 ## What is the average daily activity pattern?
 
+#####Calculating mean steps by interval
+```{r}
+IntervalActivity = activity %>% group_by(interval) %>% summarise(meanSteps = mean(steps))
+head(IntervalActivity)
+```
 
+####Ploting
+```{r}
+g=ggplot(IntervalActivity,aes(interval,meanSteps)) + geom_line(colour="blue") 
+g = g + labs(x="Average steps", y="intervals (5 min)", 
+             title="Daily activity" )
+g = g + theme_get() 
+print(g)
+```
+
+####The 5-minute interval that, on average, contains the maximum number of steps
+```{r}
+paste("The 5-minute interval that contains maximum average of steps",
+      IntervalActivity$interval[IntervalActivity$meanSteps==max(IntervalActivity$meanSteps)],
+      sep="=")
+paste("Average of steps at this interval",max(IntervalActivity$meanSteps),sep="=") 
+```
 
 ## Imputing missing values
 
+Initially (in previous steps) we simply removed the lines containing NA 
+**"activity = na.omit (activityFull)"**
 
+Now we will use a strategy to impute values by replacing NAs
+
+####Analyzing the occurrence of NA in the dataset
+
+######Which fields contains NA values?
+```{r}
+for(i in 1:ncol(activityFull)) {
+#  label=paste("NA values in column ",names(activityFull)[i])
+  print(paste(paste("NA values in column ",names(activityFull)[i]),sum(is.na(activityFull[,i]))))
+}
+```
+**Only the column "steps" contains NA Values**
+
+
+######How many and what percentage?
+```{r}
+paste("Total lines with NA",nrow(activityFull)-nrow(na.omit(activityFull)),sep="=")  
+print(paste("Percentage of NA values",round(((nrow(activityFull)-nrow(na.omit(activityFull)))/nrow(activityFull))*100),"%"))
+```
+
+####The strategy adopted was to fill the NA with the average steps of the interval to which the record belongs.
+####Will be created a new dataset with the NA filled in this way
+```{r}
+activityImp = merge(activityFull,IntervalActivity, by="interval") 
+activityImp$steps[is.na(activityImp$steps)] = activityImp$meanSteps[is.na(activityImp$steps)]
+head(activityImp)
+activityImp =  activityImp[,1:3]
+head(activityImp)
+```
+
+
+####Histogram of the total number of steps taken each day after missing values are imputed
+```{r}
+sumStepsActivityImp = activityImp  %>% group_by(date) %>% summarise(totalSteps = sum(steps))
+head(sumStepsActivityImp)
+
+colores=c(rbind(colors()[grepl("orange",colors())][1:15],colors()[grepl("blue",colors())][1:15]))
+g=ggplot(sumStepsActivityImp,aes(totalSteps)) + geom_histogram(fill=colores) 
+g = g + labs(x="Number of steps taken in a day", y="Number of Occurrences", 
+             title="Total number of steps taken each day")
+g = g + theme_get() 
+
+print(g)
+
+```
 
 ## Are there differences in activity patterns between weekdays and weekends?
+
+####Creating a dataset containing the information whether the date is weekend or not ("weekend" or "weekday")
+```{r}
+activityKD = activityImp %>% 
+             mutate(kindofday=ifelse(wday(as.Date(date, format = "%Y-%m-%d"))==1 | 
+                                     wday(as.Date(date, format = "%Y-%m-%d"))== 7,"weekend","weekday"))
+head(activityKD)
+```
+
+####Summarizing
+```{r}
+IntervalActivityKD = activityKD  %>% group_by(interval,kindofday) %>% summarise(meanSteps = mean(steps))
+head(IntervalActivityKD)
+```
+
+####PLoting
+```{r}
+g=ggplot(IntervalActivityKD,aes(interval,meanSteps)) + geom_line(aes(colour=kindofday))
+g = g + labs(x="Average steps", y="intervals (5 min)", 
+             title="Daily activity (Weekends x Weekdays)" )
+g = g + theme_get() + facet_grid(kindofday ~ .)
+print(g)
+```
